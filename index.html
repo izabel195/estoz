@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Controle de Estoque - Kurma</title>
+
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 20px;
+      background: url("./WhatsApp Image 2025-06-06 at 14.52.34 (1).jpeg") no-repeat center center fixed;
+      background-size: cover;
+      color: #000000;
+      display: none;
+    }
+    h1 {
+      text-align: center;
+      color: #fafafa;
+      text-shadow: 2px 2px 4px #464646;
+    }
+    .card {
+      background: rgba(0, 0, 0, 0.2);
+      padding: 20px;
+      margin: 20px auto;
+      border-radius: 12px;
+      max-width: 800px;
+      color: white;
+    }
+    label {
+      display: block;
+      margin-top: 10px;
+      font-weight: bold;
+    }
+    input, select {
+      width: 100%;
+      padding: 10px;
+      margin-top: 5px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      color: #000000;
+    }
+    button {
+      margin-top: 15px;
+      padding: 10px 20px;
+      background: #007BFF;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    button:hover {
+      background: #0056b3;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+      color: black;
+    }
+    th, td {
+      border: 1px solid #ccc;
+      padding: 10px;
+      text-align: center;
+      background-color: #fff;
+    }
+    th {
+      background: #007BFF;
+      color: white;
+    }
+    #logoutBtn {
+      float: right;
+      background: red;
+      margin-right: 10px;
+    }
+    #loginContainer {
+      max-width: 400px;
+      margin: 50px auto;
+      background: rgba(0, 0, 0, 0.2);
+      padding: 30px;
+      border-radius: 10px;
+      color: white;
+      display: none;
+    }
+    #loginContainer input {
+      color: black;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Controle de Estoque - Kurma</h1>
+  <button id="logoutBtn" onclick="logout()">Sair</button>
+
+  <div id="appContent">
+    <div class="card">
+      <h2>Cadastro de Produto</h2>
+      <label for="nomeProduto">Nome do Produto:</label>
+      <input type="text" id="nomeProduto" />
+      <label for="categoriaProduto">Categoria:</label>
+      <input type="text" id="categoriaProduto" />
+      <label for="estoqueMinimo">Estoque Mínimo:</label>
+      <input type="number" id="estoqueMinimo" />
+      <button onclick="cadastrarProduto()">Cadastrar Produto</button>
+    </div>
+
+    <div class="card">
+      <h2>Movimentar Produto</h2>
+      <label for="produtoSelect">Produto:</label>
+      <select id="produtoSelect"></select>
+      <label for="tipoMov">Tipo:</label>
+      <select id="tipoMov">
+        <option value="Entrada">Entrada</option>
+        <option value="Saída">Saída</option>
+      </select>
+      <label for="quantidade">Quantidade:</label>
+      <input type="number" id="quantidade" />
+      <label for="responsavel">Responsável:</label>
+      <input type="text" id="responsavel" />
+      <button onclick="registrarMovimentacao()">Registrar Movimentação</button>
+    </div>
+
+    <div class="card">
+      <h2>Estoque Atual</h2>
+      <table id="estoqueTable">
+        <thead>
+          <tr>
+            <th>Produto</th>
+            <th>Categoria</th>
+            <th>Estoque</th>
+            <th>Mínimo</th>
+            <th>Ações</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>Histórico de Movimentações</h2>
+      <table id="historicoTable">
+        <thead>
+          <tr>
+            <th>Data</th>
+            <th>Produto</th>
+            <th>Tipo</th>
+            <th>Quantidade</th>
+            <th>Responsável</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div id="loginContainer">
+    <h2>Login</h2>
+    <input type="email" id="email" placeholder="Email" /><br /><br />
+    <input type="password" id="senha" placeholder="Senha" /><br /><br />
+    <button onclick="login()">Entrar</button>
+    <button onclick="registrar()">Registrar</button>
+  </div>
+
+<script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyAxlXxvIn3pva7-dkheXwz0mkil2DscNZw",
+    authDomain: "estoque-kurma.firebaseapp.com",
+    projectId: "estoque-kurma",
+    storageBucket: "estoque-kurma.appspot.com",
+    messagingSenderId: "1016110515926",
+    appId: "1:1016110515926:web:b6735d7f57e74de7f9ab77",
+    measurementId: "G-GJ0BH18CC4"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
+  const auth = firebase.auth();
+
+  const appContent = document.getElementById('appContent');
+  const loginContainer = document.getElementById('loginContainer');
+  const body = document.body;
+  const logoutBtn = document.getElementById('logoutBtn');
+
+  auth.onAuthStateChanged(user => {
+    if (user) {
+      body.style.display = 'block';
+      appContent.style.display = 'block';
+      loginContainer.style.display = 'none';
+      logoutBtn.style.display = 'inline-block';
+      atualizarProdutos();
+      atualizarEstoque();
+      atualizarHistorico();
+    } else {
+      body.style.display = 'block';
+      appContent.style.display = 'none';
+      loginContainer.style.display = 'block';
+      logoutBtn.style.display = 'none';
+    }
+  });
+
+  function login() {
+    const email = document.getElementById('email').value.trim();
+    const senha = document.getElementById('senha').value.trim();
+    if (!email || !senha) {
+      alert("Preencha email e senha.");
+      return;
+    }
+    auth.signInWithEmailAndPassword(email, senha).catch(e => alert("Erro ao fazer login: " + e.message));
+  }
+
+  function registrar() {
+    const email = document.getElementById('email').value.trim();
+    const senha = document.getElementById('senha').value.trim();
+    if (!email || !senha) {
+      alert("Preencha email e senha para registrar.");
+      return;
+    }
+    auth.createUserWithEmailAndPassword(email, senha).catch(e => alert("Erro ao registrar: " + e.message));
+  }
+
+  function logout() {
+    auth.signOut();
+  }
+
+  async function cadastrarProduto() {
+    const nome = document.getElementById('nomeProduto').value.trim();
+    const categoria = document.getElementById('categoriaProduto').value.trim();
+    const minimo = parseInt(document.getElementById('estoqueMinimo').value);
+    if (!nome || !categoria || isNaN(minimo)) {
+      alert("Preencha todos os campos do produto corretamente.");
+      return;
+    }
+    try {
+      await db.collection("produtos").add({ nome, categoria, estoque: 0, minimo });
+      alert("Produto cadastrado!");
+      document.getElementById('nomeProduto').value = '';
+      document.getElementById('categoriaProduto').value = '';
+      document.getElementById('estoqueMinimo').value = '';
+      atualizarProdutos();
+      atualizarEstoque();
+    } catch (e) {
+      alert("Erro ao cadastrar produto: " + e.message);
+    }
+  }
+
+  async function registrarMovimentacao() {
+    const user = auth.currentUser;
+    if (!user) {
+      alert("Você precisa estar logado.");
+      return;
+    }
+    const produtoId = document.getElementById('produtoSelect').value;
+    const tipo = document.getElementById('tipoMov').value;
+    const quantidade = parseInt(document.getElementById('quantidade').value);
+    const responsavel = document.getElementById('responsavel').value.trim();
+    const data = firebase.firestore.Timestamp.now();
+
+    if (!produtoId || isNaN(quantidade) || quantidade <= 0 || !responsavel) {
+      alert("Preencha todos os campos corretamente para movimentação.");
+      return;
+    }
+
+    try {
+      const ref = db.collection("produtos").doc(produtoId);
+      const doc = await ref.get();
+      if (!doc.exists) {
+        alert("Produto não encontrado.");
+        return;
+      }
+      const produto = doc.data();
+
+      if (tipo === "Saída" && produto.estoque < quantidade) {
+        alert("Estoque insuficiente para saída.");
+        return;
+      }
+
+      const novoEstoque = tipo === "Entrada"
+        ? produto.estoque + quantidade
+        : produto.estoque - quantidade;
+
+      await ref.update({ estoque: novoEstoque });
+
+      await db.collection("movimentacoes").add({
+        data,
+        produto: produto.nome,
+        tipo,
+        quantidade,
+        responsavel,
+        userId: user.uid
+      });
+
+      alert("Movimentação registrada!");
+      document.getElementById('quantidade').value = '';
+      document.getElementById('responsavel').value = '';
+      atualizarEstoque();
+      atualizarHistorico();
+    } catch (e) {
+      alert("Erro ao registrar movimentação: " + e.message);
+    }
+  }
+
+  async function atualizarProdutos() {
+    const select = document.getElementById('produtoSelect');
+    select.innerHTML = '';
+    try {
+      const snapshot = await db.collection("produtos").get();
+      snapshot.forEach(doc => {
+        const option = document.createElement('option');
+        option.value = doc.id;
+        option.textContent = doc.data().nome;
+        select.appendChild(option);
+      });
+    } catch (e) {
+      alert("Erro ao carregar produtos: " + e.message);
+    }
+  }
+
+  async function atualizarEstoque() {
+    const tbody = document.querySelector('#estoqueTable tbody');
+    tbody.innerHTML = '';
+    try {
+      const snapshot = await db.collection("produtos").get();
+      snapshot.forEach(doc => {
+        const p = doc.data();
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td>${p.nome}</td>
+          <td>${p.categoria}</td>
+          <td style="color: ${p.estoque <= p.minimo ? 'red' : 'black'}">${p.estoque}</td>
+          <td>${p.minimo}</td>
+          <td><button onclick="excluirProduto('${doc.id}')">Excluir</button></td>
+        `;
+        tbody.appendChild(row);
+      });
+    } catch (e) {
+      alert("Erro ao atualizar estoque: " + e.message);
+    }
+  }
+
+    async function atualizarHistorico() {
+  const tbody = document.getElementById('historicoTable').querySelector('tbody');
+  tbody.innerHTML = '';
+
+  try {
+    const snapshot = await db.collection("movimentacoes").orderBy("data", "desc").get();
+    snapshot.forEach(doc => {
+      const m = doc.data();
+
+      let dataFormatada = '';
+      if (m.data && typeof m.data.toDate === 'function') {
+        dataFormatada = m.data.toDate().toLocaleString('pt-BR');
+      } else if (typeof m.data === 'string' || typeof m.data === 'number') {
+        const dataObj = new Date(m.data);
+        dataFormatada = dataObj.toLocaleString('pt-BR');
+      } else {
+        dataFormatada = 'Data inválida';
+      }
+
+      const row = `
+        <tr>
+          <td>${dataFormatada}</td>
+          <td>${m.produto}</td>
+          <td>${m.tipo}</td>
+          <td>${m.quantidade}</td>
+          <td>${m.responsavel}</td>
+        </tr>
+      `;
+      tbody.innerHTML += row;
+    });
+  } catch (e) {
+    alert("Erro ao carregar histórico: " + e.message);
+  }
+}
+
+
+  async function excluirProduto(id) {
+    if (!confirm("Deseja excluir este produto?")) return;
+    try {
+      await db.collection("produtos").doc(id).delete();
+      alert("Produto excluído!");
+      atualizarProdutos();
+      atualizarEstoque();
+    } catch (e) {
+      alert("Erro ao excluir produto: " + e.message);
+    }
+  }
+</script>
+
+</body>
+</html>
+
+
