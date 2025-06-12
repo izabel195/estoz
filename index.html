@@ -15,7 +15,7 @@
       font-family: Arial, sans-serif;
       margin: 0;
       padding: 20px;
-      background: url("./WhatsApp Image 2025-06-06 at 14.52.34 (1).jpeg") no-repeat center center fixed;
+      background: url("./WhatsApp\ Image\ 2025-06-06\ at\ 14.52.34\ \(1\).jpeg.jpg") no-repeat center center fixed;
       background-size: cover;
       color: #000000;
       display: none;
@@ -113,6 +113,13 @@
 
     <div class="card">
       <h2>Movimentar Produto</h2>
+      <div style="display: flex; gap: 10px; align-items: center; margin-top: 10px;">
+  <input type="text" id="filtroEstoque" placeholder="Pesquisar produto..." style="flex: 1; padding:10px; border-radius:5px;" />
+  <button onclick="filtrarEstoque()"
+  style="padding: 10px 20px; background-color: #086c77; border: none; border-radius: 5px; color: white; font-weight: bold;">Buscar</button>
+</div>
+
+
       <label for="produtoSelect">Produto:</label>
       <select id="produtoSelect"></select>
       <label for="tipoMov">Tipo:</label>
@@ -128,20 +135,36 @@
     </div>
 
     <div class="card">
-      <h2>Estoque Atual</h2>
-      <table id="estoqueTable">
-        <thead>
-          <tr>
-            <th>Produto</th>
-            <th>Categoria</th>
-            <th>Estoque</th>
-            <th>Mínimo</th>
-            <th>Ações</th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
-    </div>
+  <h2>Estoque Atual</h2>
+  
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; gap: 10px;">
+    <input 
+      type="text" 
+      id="buscaEstoqueInput" 
+      placeholder="Buscar produto no estoque..." 
+      style="flex: 1; padding: 10px; border-radius: 5px;" 
+    />
+    <button 
+      onclick="buscarNoEstoque()" 
+      style="padding: 10px 20px; background-color: #086c77; border: none; border-radius: 5px; color: white; font-weight: bold;"
+    >
+      Buscar
+    </button>
+  </div>
+
+  <table id="estoqueTable">
+    <thead>
+      <tr>
+        <th>Produto</th>
+        <th>Categoria</th>
+        <th>Estoque</th>
+        <th>Mínimo</th>
+        <th>Ações</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
 
     <div class="card">
       <h2>Histórico de Movimentações</h2>
@@ -322,6 +345,8 @@
   }
 
   async function atualizarEstoque() {
+    
+
     const tbody = document.querySelector('#estoqueTable tbody');
     tbody.innerHTML = '';
     try {
@@ -377,6 +402,37 @@
     alert("Erro ao carregar histórico: " + e.message);
   }
 }
+function buscarNoEstoque() {
+  const filtro = document.getElementById('buscaEstoqueInput').value.trim().toLowerCase();
+  const linhas = document.querySelectorAll('#estoqueTable tbody tr');
+
+  linhas.forEach(linha => {
+    const nomeProduto = linha.cells[0].textContent.toLowerCase();
+    linha.style.display = nomeProduto.includes(filtro) ? '' : 'none';
+  });
+}
+function filtrarEstoque() {
+  const filtro = document.getElementById('filtroEstoque').value.trim().toLowerCase();
+  const select = document.getElementById('produtoSelect');
+
+  for (let i = 0; i < select.options.length; i++) {
+    const option = select.options[i];
+    const texto = option.textContent.toLowerCase();
+
+    if (!filtro || texto.includes(filtro)) {
+      option.style.display = 'block';
+    } else {
+      option.style.display = 'none';
+    }
+  }
+
+  const visiveis = Array.from(select.options).filter(opt => opt.style.display !== 'none');
+  if (visiveis.length > 0) {
+    select.value = visiveis[0].value;
+  }
+}
+
+
 
 
   async function excluirProduto(id) {
@@ -394,5 +450,12 @@
 
 </body>
 </html>
+
+
+
+
+
+
+
 
 
