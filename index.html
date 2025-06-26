@@ -119,24 +119,49 @@
     </div>
 
     <!-- MOVIMENTAÇÃO -->
-    <div class="card">
-      <h2>Movimentar Produto</h2>
-      <label for="filtroProdutoMov">Pesquisar Produto:</label>
-<input type="text" id="filtroProdutoMov" placeholder="Digite para filtrar..." oninput="filtrarProdutosMovimentacao()" />
+  
+<div class="card">
+  <h2>Movimentar Produto</h2>
+  <label for="filtroProdutoMov">Filtrar Produto:</label>
+<input type="text" id="filtroProdutoMov" placeholder="Digite o nome do produto..." oninput="filtrarProdutosMovimentacao()" />
 
-      <label for="produtoSelect">Produto:</label>
-      <select id="produtoSelect"></select>
-      <label for="tipoMov">Tipo:</label>
-      <select id="tipoMov">
-        <option value="Entrada">Entrada</option>
-        <option value="Saída">Saída</option>
-      </select>
-      <label for="quantidade">Quantidade:</label>
-      <input type="number" id="quantidade" />
-      <label for="responsavel">Responsável:</label>
-      <input type="text" id="responsavel" />
-      <button onclick="registrarMovimentacao()">Registrar Movimentação</button>
-    </div>
+
+  <label for="produtoSelect">Produto:</label>
+  <select id="produtoSelect"></select>
+
+  <label for="tipoMov">Tipo:</label>
+  <select id="tipoMov">
+    <option value="Entrada">Entrada</option>
+    <option value="Saída">Saída</option>
+  </select>
+
+  <label for="quantidade">Quantidade:</label>
+  <input type="number" id="quantidade" />
+
+  <label for="responsavel">Responsável:</label>
+  <input type="text" id="responsavel" />
+
+  <label for="motivo">Motivo:</label>
+  <select id="motivo" onchange="mostrarCamposVenda()">
+    <option value="">Selecione um motivo</option>
+    <option value="Venda">Venda</option>
+    <option value="Perda">Perda</option>
+    <option value="Ajuste">Ajuste</option>
+    <option value="Transferência">Transferência</option>
+    <option value="Outro">Outro</option>
+  </select>
+
+  <div id="campoVenda" style="display: none;">
+    <label for="numeroVenda">Número da Venda:</label>
+    <input type="text" id="numeroVenda" placeholder="Ex: #1023" />
+    <label for="nomeVenda">Nome da Venda:</label>
+    <input type="text" id="nomeVenda" placeholder="Ex: João Cliente" />
+  </div>
+
+  <button onclick="registrarMovimentacao()">Registrar Movimentação</button>
+  
+</div>
+
 
     <!-- ESTOQUE -->
     <div class="card">
@@ -305,34 +330,74 @@
     }
     
 
-    async function registrarMovimentacao() {
-      const user = auth.currentUser;
-      const produtoId = document.getElementById('produtoSelect').value;
-      const tipo = document.getElementById('tipoMov').value;
-      const quantidade = parseInt(document.getElementById('quantidade').value);
-      const responsavel = document.getElementById('responsavel').value.trim();
-      const data = firebase.firestore.Timestamp.now();
-      if (!produtoId || isNaN(quantidade) || quantidade <= 0 || !responsavel) return alert("Preencha os campos corretamente.");
-      try {
-        const ref = db.collection("produtos").doc(produtoId);
-        const doc = await ref.get();
-        if (!doc.exists) return alert("Produto não encontrado.");
-        const produto = doc.data();
-        if (tipo === "Saída" && produto.estoque < quantidade) return alert("Estoque insuficiente.");
-        const novoEstoque = tipo === "Entrada" ? produto.estoque + quantidade : produto.estoque - quantidade;
-        await ref.update({ estoque: novoEstoque });
-        await db.collection("movimentacoes").add({ data, produto: produto.nome, tipo, quantidade, responsavel, userId: user.uid });
-        alert("Movimentação registrada!");
-        document.getElementById('quantidade').value = '';
-        document.getElementById('responsavel').value = '';
-        atualizarEstoque();
-        atualizarHistorico();
-      } catch (e) {
-        alert("Erro: " + e.message);
-      }
-    }
-    
+      function mostrarCamposVenda() {
+    const motivo = document.getElementById('motivo').value;
+    const campoVenda = document.getElementById('campoVenda');
+    campoVenda.style.display = motivo === "Venda" ? 'block' : 'none';
+  }
 
+  async function registrarMovimentacao() {
+    const user = auth.currentUser;
+    const produtoId = document.getElementById('produtoSelect').value;
+    const tipo = document.getElementById('tipoMov').value;
+    const quantidade = parseInt(document.getElementById('quantidade').value);
+    const responsavel = document.getElementById('responsavel').value.trim();
+    const motivo = document.getElementById('motivo').value.trim();
+    const numeroVenda = document.getElementById('numeroVenda').value.trim();
+    const nomeVenda = document.getElementById('nomeVenda').value.trim();
+    const data = firebase.firestore.Timestamp.now();
+
+    if (!produtoId || isNaN(quantidade) || quantidade <= 0 || !responsavel) {
+      return alert("Preencha todos os campos obrigatórios.");
+    }
+
+    if (motivo === "Venda" && (!numeroVenda || !nomeVenda)) {
+      return alert("Informe o número e o nome da venda.");
+    }
+
+    try {
+      const ref = db.collection("produtos").doc(produtoId);
+      const doc = await ref.get();
+      if (!doc.exists) return alert("Produto não encontrado.");
+
+      const produto = doc.data();
+
+      if (tipo === "Saída" && produto.estoque < quantidade) {
+        return alert("Estoque insuficiente.");
+      }
+
+      const novoEstoque = tipo === "Entrada"
+        ? produto.estoque + quantidade
+        : produto.estoque - quantidade;
+
+      await ref.update({ estoque: novoEstoque });
+
+      await db.collection("movimentacoes").add({
+        data,
+        produto: produto.nome,
+        tipo,
+        quantidade,
+        responsavel,
+        motivo,
+        numeroVenda: motivo === "Venda" ? numeroVenda : null,
+        nomeVenda: motivo === "Venda" ? nomeVenda : null,
+        userId: user.uid
+      });
+
+      alert("Movimentação registrada com sucesso!");
+      document.getElementById('quantidade').value = '';
+      document.getElementById('responsavel').value = '';
+      document.getElementById('motivo').value = '';
+      document.getElementById('numeroVenda').value = '';
+      document.getElementById('nomeVenda').value = '';
+      document.getElementById('campoVenda').style.display = 'none';
+
+      atualizarHistorico();
+
+    } catch (e) {
+      alert("Erro ao registrar movimentação: " + e.message);
+    }
+  }
     async function atualizarProdutos() {
       const select = document.getElementById('produtoSelect');
       select.innerHTML = '';
@@ -344,19 +409,38 @@
         select.appendChild(option);
       });
     }
-    let produtosMovimentacao = []; // Vai guardar todos os produtos para filtro
+    let produtosMovimentacao = []; // Para pesquisa futura, se precisar
 
 async function atualizarProdutos() {
   const select = document.getElementById('produtoSelect');
-  select.innerHTML = '';
-  produtosMovimentacao = [];
-  const snapshot = await db.collection("produtos").get();
-  snapshot.forEach(doc => {
-    const produto = { id: doc.id, nome: doc.data().nome };
-    produtosMovimentacao.push(produto);
-  });
-  filtrarProdutosMovimentacao();
+  select.innerHTML = ''; // Limpa o select
+
+  try {
+    const snapshot = await db.collection("produtos").get();
+    produtosMovimentacao = [];
+
+    snapshot.forEach(doc => {
+      const produto = doc.data();
+      produtosMovimentacao.push({ id: doc.id, nome: produto.nome });
+
+      const option = document.createElement('option');
+      option.value = doc.id;
+      option.textContent = produto.nome;
+      select.appendChild(option);
+    });
+
+    if (produtosMovimentacao.length === 0) {
+      const option = document.createElement('option');
+      option.textContent = "Nenhum produto cadastrado";
+      option.disabled = true;
+      select.appendChild(option);
+    }
+  } catch (e) {
+    alert("Erro ao carregar produtos: " + e.message);
+  }
 }
+  filtrarProdutosMovimentacao();
+
 
 function filtrarProdutosMovimentacao() {
   const filtro = document.getElementById('filtroProdutoMov').value.toLowerCase();
@@ -430,31 +514,31 @@ function filtrarProdutosMovimentacao() {
     }
 
     async function atualizarHistorico() {
-      const tbody = document.querySelector('#historicoTable tbody');
-      tbody.innerHTML = '';
-      const snapshot = await db.collection("movimentacoes").orderBy("data", "desc").get();
-      snapshot.forEach(doc => {
-        const m = doc.data();
-        const dataFormatada = m.data.toDate().toLocaleString('pt-BR');
-        tbody.innerHTML += `
-          <tr>
-            <td>${dataFormatada}</td>
-            <td>${m.produto}</td>
-            <td>${m.tipo}</td>
-            <td>${m.quantidade}</td>
-            <td>${m.responsavel}</td>
-          </tr>
-        `;
-      });
-    }
+  const tbody = document.querySelector('#historicoTable tbody');
+  tbody.innerHTML = '';
+  const snapshot = await db.collection("movimentacoes").orderBy("data", "desc").get();
 
-    async function excluirProduto(id) {
-      if (!confirm("Deseja excluir este produto?")) return;
-      await db.collection("produtos").doc(id).delete();
-      alert("Produto excluído!");
-      atualizarProdutos();
-      atualizarEstoque();
-    }
+  snapshot.forEach(doc => {
+    const m = doc.data();
+    const dataFormatada = m.data.toDate().toLocaleString('pt-BR');
+
+    const isVenda = m.tipo === "Saída" && m.motivo?.toLowerCase() === "venda";
+    const estiloLinha = isVenda ? 'style="background-color: #ffe6e6; font-weight: bold;"' : '';
+    const motivoText = m.motivo ? ` (${m.motivo})` : '';
+    const vendaInfo = isVenda ? 
+  ` - Nº ${m.numeroVenda || ''} (${m.nomeVenda || ''})` : '';
+
+    tbody.innerHTML += `
+      <tr ${estiloLinha}>
+        <td>${dataFormatada}</td>
+        <td>${m.produto}</td>
+        <td>${m.tipo}${motivoText}${vendaInfo}</td>
+        <td>${m.quantidade}</td>
+        <td>${m.responsavel}</td>
+      </tr>
+    `;
+  });
+}
   </script>
 </body>
 </html>
