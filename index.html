@@ -96,7 +96,7 @@
 </head>
 <body>
 
-  <h1>Controle de Estoque - Kurma </h1>
+  <h1>Controle de Estoque - Aero Pipa</h1>
   <button id="logoutBtn" onclick="logout()">Sair</button>
 
   <div id="appContent">
@@ -124,6 +124,8 @@
   <h2>Movimentar Produto</h2>
   <label for="filtroProdutoMov">Filtrar Produto:</label>
 <input type="text" id="filtroProdutoMov" placeholder="Digite o nome do produto..." oninput="filtrarProdutosMovimentacao()" />
+
+<button id="btnAjuste" onclick="ajustarEstoque()" style="display:none;">Ajustar Estoque Manual</button>
 
 
   <label for="produtoSelect">Produto:</label>
@@ -335,6 +337,66 @@
     const campoVenda = document.getElementById('campoVenda');
     campoVenda.style.display = motivo === "Venda" ? 'block' : 'none';
   }
+  const admins = ["uilianlopes286@gmail.com", "aeropipa7@gmail.com"]; // substitua com e-mails reais
+
+auth.onAuthStateChanged(user => {
+  if (user) {
+    body.style.display = 'block';
+    appContent.style.display = 'block';
+    loginContainer.style.display = 'none';
+    logoutBtn.style.display = 'inline-block';
+
+    // Mostrar botão de ajuste apenas para admins
+    if (admins.includes(user.email)) {
+      document.getElementById('btnAjuste').style.display = 'inline-block';
+    }
+
+    atualizarProdutos();
+    atualizarEstoque();
+    atualizarHistorico();
+  } else {
+    body.style.display = 'block';
+    appContent.style.display = 'none';
+    loginContainer.style.display = 'block';
+    logoutBtn.style.display = 'none';
+  }
+});
+
+  async function ajustarEstoque() {
+  const produtoId = document.getElementById('produtoSelect').value;
+  if (!produtoId) return alert("Selecione um produto.");
+
+  const novaQtd = prompt("Digite o novo valor do estoque para esse produto:");
+  const quantidade = parseInt(novaQtd);
+
+  if (isNaN(quantidade) || quantidade < 0) {
+    return alert("Valor inválido.");
+  }
+
+  try {
+    await db.collection("produtos").doc(produtoId).update({ estoque: quantidade });
+
+    const doc = await db.collection("produtos").doc(produtoId).get();
+    const produto = doc.data();
+
+    await db.collection("movimentacoes").add({
+      data: firebase.firestore.Timestamp.now(),
+      produto: produto.nome,
+      tipo: "Ajuste Manual",
+      quantidade: quantidade,
+      responsavel: auth.currentUser.email || "Ajuste",
+      motivo: "Ajuste Manual",
+      userId: auth.currentUser.uid
+    });
+
+    alert("Estoque ajustado com sucesso!");
+    atualizarEstoque();
+    atualizarHistorico();
+  } catch (e) {
+    alert("Erro ao ajustar estoque: " + e.message);
+  }
+}
+
 
   async function registrarMovimentacao() {
     const user = auth.currentUser;
@@ -539,6 +601,12 @@ function filtrarProdutosMovimentacao() {
     `;
   });
 }
+  </script>
+</body>
+</html>
+
+
+
   </script>
 </body>
 </html>
