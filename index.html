@@ -574,6 +574,20 @@ function filtrarProdutosMovimentacao() {
         alert("Erro ao carregar produto para edição: " + e.message);
       }
     }
+    async function excluirProduto(id) {
+  const confirmar = confirm("Tem certeza que deseja excluir este produto?");
+  if (!confirmar) return;
+
+  try {
+    await db.collection("produtos").doc(id).delete();
+    alert("Produto excluído com sucesso!");
+    atualizarEstoque();
+    atualizarProdutos();
+  } catch (e) {
+    alert("Erro ao excluir produto: " + e.message);
+  }
+}
+
 
     async function atualizarHistorico() {
   const tbody = document.querySelector('#historicoTable tbody');
@@ -606,7 +620,3 @@ function filtrarProdutosMovimentacao() {
 </html>
 
 
-
-  </script>
-</body>
-</html>
